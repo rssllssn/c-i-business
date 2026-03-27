@@ -17,6 +17,15 @@ function getSelectedDate(formData: FormData) {
   return String(formData.get("selectedDate") ?? "").trim();
 }
 
+function getReturnPath(formData: FormData) {
+  return String(formData.get("returnPath") ?? "").trim();
+}
+
+function appendQuery(path: string, key: string, value: string) {
+  const separator = path.includes("?") ? "&" : "?";
+  return `${path}${separator}${key}=${encodeURIComponent(value)}`;
+}
+
 async function getAuthedClient() {
   const supabase = await createClient();
   const { data } = await supabase.auth.getUser();
@@ -40,10 +49,14 @@ export async function markSalePaidAction(formData: FormData) {
   const businessId = getBusinessId(formData);
   const saleId = getSaleId(formData);
   const selectedDate = getSelectedDate(formData);
+  const returnPath = getReturnPath(formData);
 
   if (!businessId || !saleId) {
     redirect("/dashboard?error=missing-sale");
   }
+
+  const fallbackPath = `/dashboard/${businessId}/history${selectedDate ? `?date=${encodeURIComponent(selectedDate)}` : ""}`;
+  const targetPath = returnPath || fallbackPath;
 
   const supabase = await getAuthedClient();
   const { error } = await supabase.rpc("mark_sale_paid", {
@@ -52,9 +65,9 @@ export async function markSalePaidAction(formData: FormData) {
   });
 
   if (error) {
-    redirect(`/dashboard/${businessId}/history?date=${encodeURIComponent(selectedDate || "")}&error=${encodeURIComponent(error.message)}`);
+    redirect(appendQuery(targetPath, "error", error.message));
   }
 
   revalidateHistoryState(businessId);
-  redirect(`/dashboard/${businessId}/history?date=${encodeURIComponent(selectedDate || "")}&success=paid`);
+  redirect(appendQuery(targetPath, "success", "paid"));
 }
