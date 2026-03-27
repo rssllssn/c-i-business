@@ -5,6 +5,7 @@ import {
   Banknote,
   ClipboardList,
   CheckCircle2,
+  CalendarDays,
   ReceiptText,
   TrendingUp,
 } from "lucide-react";
@@ -41,6 +42,12 @@ export default async function BusinessOverviewPage({
               <Link href={`/dashboard/${businessId}/pos`}>
                 <ReceiptText className="h-4 w-4" />
                 Open POS
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href={`/dashboard/${businessId}/history`}>
+                <CalendarDays className="h-4 w-4" />
+                History
               </Link>
             </Button>
             <Button asChild variant="outline">

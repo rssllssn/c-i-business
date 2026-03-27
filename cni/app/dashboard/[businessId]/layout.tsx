@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { type ReactNode } from "react";
 import {
   Banknote,
+  CalendarDays,
   LayoutDashboard,
   ReceiptText,
   Store,
@@ -34,6 +35,12 @@ const moduleLinks = [
     icon: Banknote,
     label: "End of day",
     description: "Close the register",
+  },
+  {
+    href: (businessId: string) => `/dashboard/${businessId}/history`,
+    icon: CalendarDays,
+    label: "Daily history",
+    description: "Review sales from any day",
   },
 ];
 

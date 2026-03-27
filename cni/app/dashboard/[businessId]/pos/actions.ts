@@ -28,6 +28,7 @@ function revalidatePosState(businessId: string) {
   revalidatePath("/dashboard");
   revalidatePath(`/dashboard/${businessId}`);
   revalidatePath(`/dashboard/${businessId}/pos`);
+  revalidatePath(`/dashboard/${businessId}/history`);
   revalidatePath(`/dashboard/${businessId}/eod`);
 }
 

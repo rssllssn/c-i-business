@@ -51,36 +51,6 @@ export interface Database {
         };
         Relationships: [];
       };
-      products: {
-        Row: {
-          id: string;
-          business_id: string;
-          sku: string;
-          name: string;
-          retail_price: number;
-          stock_level: number;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          business_id: string;
-          sku: string;
-          name: string;
-          retail_price: number;
-          stock_level?: number;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          business_id?: string;
-          sku?: string;
-          name?: string;
-          retail_price?: number;
-          stock_level?: number;
-          created_at?: string;
-        };
-        Relationships: [];
-      };
       sales: {
         Row: {
           id: string;
@@ -140,66 +110,6 @@ export interface Database {
           user_id?: string;
           description?: string;
           amount?: number;
-          created_at?: string;
-        };
-        Relationships: [];
-      };
-      sale_items: {
-        Row: {
-          id: string;
-          sale_id: string;
-          product_id: string;
-          quantity: number;
-          unit_price: number;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          sale_id: string;
-          product_id: string;
-          quantity: number;
-          unit_price: number;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          sale_id?: string;
-          product_id?: string;
-          quantity?: number;
-          unit_price?: number;
-          created_at?: string;
-        };
-        Relationships: [];
-      };
-      daily_attendance: {
-        Row: {
-          id: string;
-          business_id: string;
-          user_id: string;
-          work_date: string;
-          wage_due: number;
-          is_paid: boolean;
-          clocked_in_at: string;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          business_id: string;
-          user_id: string;
-          work_date?: string;
-          wage_due?: number;
-          is_paid?: boolean;
-          clocked_in_at?: string;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          business_id?: string;
-          user_id?: string;
-          work_date?: string;
-          wage_due?: number;
-          is_paid?: boolean;
-          clocked_in_at?: string;
           created_at?: string;
         };
         Relationships: [];
@@ -270,16 +180,16 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
-      create_sale: {
-        Args: {
-          p_business_id: string;
-          p_items: Json;
-        };
-        Returns: Database["public"]["Tables"]["sales"]["Row"];
-      };
       is_admin: {
         Args: Record<string, never>;
         Returns: boolean;
+      };
+      mark_sale_paid: {
+        Args: {
+          p_business_id: string;
+          p_sale_id: string;
+        };
+        Returns: Database["public"]["Tables"]["sales"]["Row"];
       };
       process_end_of_day: {
         Args: {

@@ -3,10 +3,7 @@ import { type SupabaseClient as SupabaseJsClient } from "@supabase/supabase-js";
 
 export type Business = Database["public"]["Tables"]["businesses"]["Row"];
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
-export type Product = Database["public"]["Tables"]["products"]["Row"];
 export type Sale = Database["public"]["Tables"]["sales"]["Row"];
-export type SaleItem = Database["public"]["Tables"]["sale_items"]["Row"];
-export type Attendance = Database["public"]["Tables"]["daily_attendance"]["Row"];
 export type Expense = Database["public"]["Tables"]["expenses"]["Row"];
 export type EodReport = Database["public"]["Tables"]["eod_reports"]["Row"];
 export type Transaction = Database["public"]["Tables"]["transactions"]["Row"];

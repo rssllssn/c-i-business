@@ -42,6 +42,7 @@ async function closeRegisterAction(formData: FormData) {
   revalidatePath("/dashboard");
   revalidatePath(`/dashboard/${businessId}`);
   revalidatePath(`/dashboard/${businessId}/pos`);
+  revalidatePath(`/dashboard/${businessId}/history`);
   revalidatePath(`/dashboard/${businessId}/eod`);
   redirect(`/dashboard/${businessId}/eod?success=1`);
 }

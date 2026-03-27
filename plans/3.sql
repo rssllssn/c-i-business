@@ -107,6 +107,31 @@ create trigger set_sale_paid_at
 before insert or update on public.sales
 for each row execute function public.sync_sale_paid_at();
 
+create or replace function public.mark_sale_paid(p_business_id uuid, p_sale_id uuid)
+returns public.sales
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_sale public.sales%rowtype;
+begin
+  update public.sales
+  set
+    is_paid = true,
+    paid_at = coalesce(paid_at, now())
+  where id = p_sale_id
+    and business_id = p_business_id
+  returning * into v_sale;
+
+  if not found then
+    raise exception 'Sale not found';
+  end if;
+
+  return v_sale;
+end;
+$$;
+
 create or replace function public.process_end_of_day(p_business_id uuid)
 returns public.eod_reports
 language plpgsql
@@ -197,6 +222,9 @@ $$;
 revoke all on function public.process_end_of_day(uuid) from public;
 grant execute on function public.process_end_of_day(uuid) to authenticated;
 
+revoke all on function public.mark_sale_paid(uuid, uuid) from public;
+grant execute on function public.mark_sale_paid(uuid, uuid) to authenticated;
+
 grant usage on schema public to authenticated;
 grant select, insert, update, delete on table public.expenses to authenticated;
 
@@ -205,5 +233,7 @@ grant select, insert, update, delete on table public.businesses to authenticated
 grant select, insert, update, delete on table public.profiles to authenticated;
 grant select, insert, update, delete on table public.eod_reports to authenticated;
 grant select, insert, update, delete on table public.transactions to authenticated;
+
+notify pgrst, 'reload schema';
 
 commit;
