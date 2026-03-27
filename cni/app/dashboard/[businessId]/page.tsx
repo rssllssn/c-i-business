@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
+  AlertCircle,
   Banknote,
   ClipboardList,
-  Package,
+  CheckCircle2,
   ReceiptText,
   TrendingUp,
-  Users,
 } from "lucide-react";
 
 import { MetricCard } from "@/components/erp/metric-card";
@@ -34,7 +34,7 @@ export default async function BusinessOverviewPage({
       <PageHeader
         badge="Business overview"
         title={summary.business.name}
-        description="Review today’s performance, staffing, stock pressure, and the most recent EOD closure at a glance."
+        description="Review today’s sales, unpaid balance, expenses, and the most recent EOD closure at a glance."
         actions={
           <div className="flex flex-wrap gap-2">
             <Button asChild>
@@ -53,30 +53,36 @@ export default async function BusinessOverviewPage({
         }
       />
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <MetricCard
+          icon={<ReceiptText className="h-5 w-5" />}
+          label="Sales logged today"
+          value={`${summary.saleCountToday}`}
+          detail="Free-form sales captured on POS"
+        />
         <MetricCard
           icon={<TrendingUp className="h-5 w-5" />}
           label="Gross sales today"
           value={formatMoney(summary.grossSalesToday)}
-          detail="All POS activity for the business"
+          detail="All recorded sales"
+        />
+        <MetricCard
+          icon={<CheckCircle2 className="h-5 w-5" />}
+          label="Paid sales"
+          value={formatMoney(summary.paidSalesToday)}
+          detail="Cash already collected"
+        />
+        <MetricCard
+          icon={<AlertCircle className="h-5 w-5" />}
+          label="Unpaid balance"
+          value={formatMoney(summary.unpaidBalanceToday)}
+          detail="Sales still awaiting payment"
         />
         <MetricCard
           icon={<Banknote className="h-5 w-5" />}
-          label="Wages today"
-          value={formatMoney(summary.wagesToday)}
-          detail="Attendance records locked in"
-        />
-        <MetricCard
-          icon={<Users className="h-5 w-5" />}
-          label="Attendance"
-          value={`${summary.attendanceCountToday}`}
-          detail="Staff checked in for the day"
-        />
-        <MetricCard
-          icon={<Package className="h-5 w-5" />}
-          label="Inventory health"
-          value={`${summary.productCount}`}
-          detail={`${summary.lowStockCount} low-stock items`}
+          label="Expenses"
+          value={formatMoney(summary.expensesToday)}
+          detail="Supplies, labor, and other costs"
         />
       </div>
 
@@ -91,20 +97,22 @@ export default async function BusinessOverviewPage({
               This is the working set used by the end-of-day close for {summary.business.name}.
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-3 sm:grid-cols-3">
+          <CardContent className="grid gap-3 sm:grid-cols-4">
             <div className="rounded-lg border border-border/60 p-4">
               <p className="text-xs text-muted-foreground">Gross sales</p>
               <p className="mt-1 text-lg font-semibold">{formatMoney(summary.grossSalesToday)}</p>
             </div>
             <div className="rounded-lg border border-border/60 p-4">
-              <p className="text-xs text-muted-foreground">Wages</p>
-              <p className="mt-1 text-lg font-semibold">{formatMoney(summary.wagesToday)}</p>
+              <p className="text-xs text-muted-foreground">Paid sales</p>
+              <p className="mt-1 text-lg font-semibold">{formatMoney(summary.paidSalesToday)}</p>
+            </div>
+            <div className="rounded-lg border border-border/60 p-4">
+              <p className="text-xs text-muted-foreground">Expenses</p>
+              <p className="mt-1 text-lg font-semibold">{formatMoney(summary.expensesToday)}</p>
             </div>
             <div className="rounded-lg border border-border/60 p-4">
               <p className="text-xs text-muted-foreground">Net cash</p>
-              <p className="mt-1 text-lg font-semibold">
-                {formatMoney(summary.grossSalesToday - summary.wagesToday)}
-              </p>
+              <p className="mt-1 text-lg font-semibold">{formatMoney(summary.netCashToday)}</p>
             </div>
           </CardContent>
         </Card>
@@ -131,8 +139,12 @@ export default async function BusinessOverviewPage({
                     <p className="font-semibold">{formatMoney(summary.latestReport.gross_sales)}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Wages</p>
-                    <p className="font-semibold">{formatMoney(summary.latestReport.total_wages_paid)}</p>
+                    <p className="text-xs text-muted-foreground">Paid</p>
+                    <p className="font-semibold">{formatMoney(summary.latestReport.paid_sales)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Expenses</p>
+                    <p className="font-semibold">{formatMoney(summary.latestReport.total_expenses)}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Net</p>

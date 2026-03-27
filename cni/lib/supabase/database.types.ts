@@ -86,21 +86,60 @@ export interface Database {
           id: string;
           business_id: string;
           user_id: string;
+          customer_name: string;
+          item_description: string;
           total_amount: number;
+          is_paid: boolean;
+          paid_at: string | null;
           created_at: string;
         };
         Insert: {
           id?: string;
           business_id: string;
           user_id: string;
+          customer_name?: string;
+          item_description?: string;
           total_amount?: number;
+          is_paid?: boolean;
+          paid_at?: string | null;
           created_at?: string;
         };
         Update: {
           id?: string;
           business_id?: string;
           user_id?: string;
+          customer_name?: string;
+          item_description?: string;
           total_amount?: number;
+          is_paid?: boolean;
+          paid_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      expenses: {
+        Row: {
+          id: string;
+          business_id: string;
+          user_id: string;
+          description: string;
+          amount: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          user_id: string;
+          description: string;
+          amount: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          user_id?: string;
+          description?: string;
+          amount?: number;
           created_at?: string;
         };
         Relationships: [];
@@ -171,7 +210,8 @@ export interface Database {
           business_id: string;
           report_date: string;
           gross_sales: number;
-          total_wages_paid: number;
+          paid_sales: number;
+          total_expenses: number;
           net_cash: number;
           closed_by: string | null;
           created_at: string;
@@ -181,7 +221,8 @@ export interface Database {
           business_id: string;
           report_date: string;
           gross_sales?: number;
-          total_wages_paid?: number;
+          paid_sales?: number;
+          total_expenses?: number;
           net_cash?: number;
           closed_by?: string | null;
           created_at?: string;
@@ -191,7 +232,8 @@ export interface Database {
           business_id?: string;
           report_date?: string;
           gross_sales?: number;
-          total_wages_paid?: number;
+          paid_sales?: number;
+          total_expenses?: number;
           net_cash?: number;
           closed_by?: string | null;
           created_at?: string;

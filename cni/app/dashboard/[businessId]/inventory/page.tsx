@@ -72,6 +72,7 @@ export default async function InventoryPage({
   searchParams?: Promise<{ success?: string; error?: string }>;
 }) {
   const { businessId } = await params;
+  redirect(`/dashboard/${businessId}`);
   const query = (await searchParams) ?? {};
   const { supabase, profile } = await getCurrentProfile();
 
@@ -93,7 +94,7 @@ export default async function InventoryPage({
   }
 
   const products = productsResult.data ?? [];
-  const isAdmin = profile.role === "admin";
+  const isAdmin = profile!.role === "admin";
 
   return (
     <div className="space-y-8">

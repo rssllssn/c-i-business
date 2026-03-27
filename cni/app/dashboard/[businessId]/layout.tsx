@@ -4,10 +4,8 @@ import { type ReactNode } from "react";
 import {
   Banknote,
   LayoutDashboard,
-  Package,
   ReceiptText,
   Store,
-  Users,
 } from "lucide-react";
 
 import { PageHeader } from "@/components/erp/page-header";
@@ -23,25 +21,13 @@ const moduleLinks = [
     href: (businessId: string) => `/dashboard/${businessId}`,
     icon: LayoutDashboard,
     label: "Business overview",
-    description: "Sales, staffing, stock, and settlement",
+    description: "Sales, expenses, and settlement",
   },
   {
     href: (businessId: string) => `/dashboard/${businessId}/pos`,
     icon: ReceiptText,
     label: "POS",
-    description: "Create and settle sales",
-  },
-  {
-    href: (businessId: string) => `/dashboard/${businessId}/inventory`,
-    icon: Package,
-    label: "Inventory",
-    description: "Products and stock levels",
-  },
-  {
-    href: (businessId: string) => `/dashboard/${businessId}/attendance`,
-    icon: Users,
-    label: "Attendance",
-    description: "Lock in daily wages",
+    description: "Create sales and log expenses",
   },
   {
     href: (businessId: string) => `/dashboard/${businessId}/eod`,
@@ -111,21 +97,26 @@ export default async function BusinessLayout({
               </div>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div className="rounded-lg border border-border/60 p-3">
-                  <p className="text-xs text-muted-foreground">Today sales</p>
-                  <p className="mt-1 font-semibold">
-                    {formatMoney(businessSummary.grossSalesToday)}
-                  </p>
+                  <p className="text-xs text-muted-foreground">Gross sales</p>
+                  <p className="mt-1 font-semibold">{formatMoney(businessSummary.grossSalesToday)}</p>
+                </div>
+                <div className="rounded-lg border border-border/60 p-3">
+                  <p className="text-xs text-muted-foreground">Paid sales</p>
+                  <p className="mt-1 font-semibold">{formatMoney(businessSummary.paidSalesToday)}</p>
+                </div>
+                <div className="rounded-lg border border-border/60 p-3">
+                  <p className="text-xs text-muted-foreground">Expenses</p>
+                  <p className="mt-1 font-semibold">{formatMoney(businessSummary.expensesToday)}</p>
                 </div>
                 <div className="rounded-lg border border-border/60 p-3">
                   <p className="text-xs text-muted-foreground">Net cash</p>
-                  <p className="mt-1 font-semibold">
-                    {formatMoney(businessSummary.grossSalesToday - businessSummary.wagesToday)}
-                  </p>
+                  <p className="mt-1 font-semibold">{formatMoney(businessSummary.netCashToday)}</p>
                 </div>
               </div>
-              <Badge variant="outline">
-                {businessSummary.attendanceCountToday} staff checked in
-              </Badge>
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="outline">{businessSummary.saleCountToday} sales today</Badge>
+                <Badge variant="outline">Unpaid {formatMoney(businessSummary.unpaidBalanceToday)}</Badge>
+              </div>
             </CardContent>
           </Card>
 

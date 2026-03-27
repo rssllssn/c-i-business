@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/erp/page-header";
-import { formatMoney, getCurrentProfile } from "@/lib/erp";
+import { getCurrentProfile } from "@/lib/erp";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
@@ -15,7 +15,6 @@ async function saveEmployeeAction(formData: FormData) {
   const profileId = String(formData.get("profileId") ?? "");
   const fullName = String(formData.get("fullName") ?? "").trim();
   const role = String(formData.get("role") ?? "staff");
-  const dailyRate = Number(formData.get("dailyRate") ?? 0);
 
   const supabase = await createClient();
   const { data: authData } = await supabase.auth.getUser();
@@ -34,7 +33,7 @@ async function saveEmployeeAction(formData: FormData) {
     redirect("/dashboard");
   }
 
-  if (!profileId || !fullName || Number.isNaN(dailyRate)) {
+  if (!profileId || !fullName) {
     redirect("/dashboard/admin/employees?error=invalid-input");
   }
 
@@ -43,7 +42,6 @@ async function saveEmployeeAction(formData: FormData) {
     .update({
       full_name: fullName,
       role: role === "admin" ? "admin" : "staff",
-      daily_rate: dailyRate,
     })
     .eq("id", profileId);
 
@@ -74,7 +72,7 @@ export default async function EmployeesPage({
 
   const { data: profiles, error } = await supabase
     .from("profiles")
-    .select("id, full_name, role, daily_rate, created_at")
+    .select("id, full_name, role, created_at")
     .order("full_name", { ascending: true });
 
   if (error) {
@@ -86,7 +84,7 @@ export default async function EmployeesPage({
       <PageHeader
         badge="Admin"
         title="Employee management"
-        description="Maintain staff identities, roles, and daily rates. Profiles are created automatically when users sign up."
+        description="Keep employee names and roles up to date. Profiles are created automatically when users sign up."
       />
 
       {query.success ? (
@@ -107,7 +105,7 @@ export default async function EmployeesPage({
         <CardHeader>
           <CardTitle>All profiles</CardTitle>
           <CardDescription>
-            Admins can promote users, rename employees, and adjust daily wages used by attendance and EOD.
+            Admins can promote users or rename employees. Daily wages are now logged as expenses.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -127,7 +125,7 @@ export default async function EmployeesPage({
                   {employee.role}
                 </Badge>
               </div>
-              <div className="grid gap-4 md:grid-cols-3">
+              <div className="grid gap-4 md:grid-cols-2">
                 <div className="grid gap-2 md:col-span-1">
                   <Label htmlFor={`fullName-${employee.id}`}>Full name</Label>
                   <Input id={`fullName-${employee.id}`} name="fullName" defaultValue={employee.full_name} required />
@@ -144,21 +142,8 @@ export default async function EmployeesPage({
                     <option value="admin">admin</option>
                   </select>
                 </div>
-                <div className="grid gap-2 md:col-span-1">
-                  <Label htmlFor={`dailyRate-${employee.id}`}>Daily rate</Label>
-                  <Input
-                    id={`dailyRate-${employee.id}`}
-                    name="dailyRate"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    defaultValue={employee.daily_rate}
-                    required
-                  />
-                </div>
               </div>
               <div className="flex items-center justify-between gap-3">
-                <p className="text-xs text-muted-foreground">Daily wage: {formatMoney(employee.daily_rate)}</p>
                 <Button type="submit" size="sm">
                   Save employee
                 </Button>

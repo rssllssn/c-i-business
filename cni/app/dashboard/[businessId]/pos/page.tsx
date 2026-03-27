@@ -1,12 +1,12 @@
 import { notFound } from "next/navigation";
-import { AlertCircle, CreditCard } from "lucide-react";
+import { AlertCircle, CheckCircle2 } from "lucide-react";
 
 import { PageHeader } from "@/components/erp/page-header";
 import { PosTerminal } from "@/components/erp/pos-terminal";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { formatMoney, formatDate, getBusinessSummary, getCurrentProfile } from "@/lib/erp";
-import { createSaleAction } from "./actions";
+import { formatDate, formatMoney, getBusinessSummary, getCurrentProfile } from "@/lib/erp";
+import { createExpenseAction, createSaleAction } from "./actions";
 
 export default async function PosPage({
   params,
@@ -23,34 +23,21 @@ export default async function PosPage({
     notFound();
   }
 
-  const [summary, productsResult] = await Promise.all([
-    getBusinessSummary(supabase, businessId),
-    supabase
-      .from("products")
-      .select("id, sku, name, retail_price, stock_level, created_at")
-      .eq("business_id", businessId)
-      .order("name", { ascending: true }),
-  ]);
-
-  if (productsResult.error) {
-    throw productsResult.error;
-  }
-
-  const products = productsResult.data ?? [];
+  const summary = await getBusinessSummary(supabase, businessId);
 
   return (
     <div className="space-y-8">
       <PageHeader
         badge="Point of sale"
         title={`${summary.business.name} POS`}
-        description="Build a cart, submit a sale, and let the database RPC handle stock reduction and sales posting atomically."
+        description="Record free-form sales and daily expenses directly, without a product catalog."
       />
 
       {query.success ? (
         <Card className="border-emerald-500/30 bg-emerald-500/5 shadow-sm">
           <CardContent className="flex items-center gap-3 p-4 text-sm text-emerald-700 dark:text-emerald-300">
-            <CreditCard className="h-4 w-4" />
-            Sale recorded successfully.
+            <CheckCircle2 className="h-4 w-4" />
+            Entry recorded successfully.
           </CardContent>
         </Card>
       ) : null}
@@ -64,35 +51,51 @@ export default async function PosPage({
         </Card>
       ) : null}
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <Card className="border-border/60 shadow-sm">
           <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground">Today&apos;s sales</p>
+            <p className="text-xs text-muted-foreground">Sales logged</p>
+            <p className="mt-1 text-xl font-semibold">{summary.saleCountToday}</p>
+          </CardContent>
+        </Card>
+        <Card className="border-border/60 shadow-sm">
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Gross sales</p>
             <p className="mt-1 text-xl font-semibold">{formatMoney(summary.grossSalesToday)}</p>
           </CardContent>
         </Card>
         <Card className="border-border/60 shadow-sm">
           <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground">Open stock items</p>
-            <p className="mt-1 text-xl font-semibold">{products.length}</p>
+            <p className="text-xs text-muted-foreground">Paid sales</p>
+            <p className="mt-1 text-xl font-semibold">{formatMoney(summary.paidSalesToday)}</p>
           </CardContent>
         </Card>
         <Card className="border-border/60 shadow-sm">
           <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground">Last settlement date</p>
-            <p className="mt-1 text-xl font-semibold">
-              {summary.latestReport ? formatDate(summary.latestReport.report_date) : "Not yet closed"}
-            </p>
+            <p className="text-xs text-muted-foreground">Expenses</p>
+            <p className="mt-1 text-xl font-semibold">{formatMoney(summary.expensesToday)}</p>
+          </CardContent>
+        </Card>
+        <Card className="border-border/60 shadow-sm">
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Net cash</p>
+            <p className="mt-1 text-xl font-semibold">{formatMoney(summary.netCashToday)}</p>
           </CardContent>
         </Card>
       </div>
 
-      <div className="flex items-center gap-2">
-        <Badge variant="outline">{summary.attendanceCountToday} staff on shift</Badge>
-        <Badge variant="outline">{products.filter((product) => product.stock_level > 0).length} sellable SKUs</Badge>
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant="outline">Unpaid {formatMoney(summary.unpaidBalanceToday)}</Badge>
+        <Badge variant="outline">
+          {summary.latestReport ? `Last closed ${formatDate(summary.latestReport.report_date)}` : "Not yet closed"}
+        </Badge>
       </div>
 
-      <PosTerminal businessId={businessId} products={products} submitSaleAction={createSaleAction} />
+      <PosTerminal
+        businessId={businessId}
+        submitSaleAction={createSaleAction}
+        submitExpenseAction={createExpenseAction}
+      />
     </div>
   );
 }

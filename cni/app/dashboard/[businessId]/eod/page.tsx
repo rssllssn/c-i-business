@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { AlertCircle, Banknote, CalendarDays, CheckCircle2, History, Lock } from "lucide-react";
+import { AlertCircle, Banknote, CheckCircle2, Lock, TrendingUp } from "lucide-react";
 
 import { MetricCard } from "@/components/erp/metric-card";
 import { PageHeader } from "@/components/erp/page-header";
@@ -41,7 +41,7 @@ async function closeRegisterAction(formData: FormData) {
 
   revalidatePath("/dashboard");
   revalidatePath(`/dashboard/${businessId}`);
-  revalidatePath(`/dashboard/${businessId}/attendance`);
+  revalidatePath(`/dashboard/${businessId}/pos`);
   revalidatePath(`/dashboard/${businessId}/eod`);
   redirect(`/dashboard/${businessId}/eod?success=1`);
 }
@@ -65,7 +65,7 @@ export default async function EodPage({
     getBusinessSummary(supabase, businessId),
     supabase
       .from("eod_reports")
-      .select("id, business_id, report_date, gross_sales, total_wages_paid, net_cash, closed_by, created_at")
+      .select("id, business_id, report_date, gross_sales, paid_sales, total_expenses, net_cash, closed_by, created_at")
       .eq("business_id", businessId)
       .order("report_date", { ascending: false })
       .limit(10),
@@ -84,7 +84,7 @@ export default async function EodPage({
       <PageHeader
         badge="End of day"
         title={`${summary.business.name} settlement`}
-        description="Close the register once sales and attendance are finalized. The RPC posts ledger entries and marks wages as paid in a single transaction."
+        description="Close the register once paid sales and expenses are finalized. Unpaid sales only count on the day they are paid."
       />
 
       {query.success ? (
@@ -108,27 +108,27 @@ export default async function EodPage({
       <div className="grid gap-4 md:grid-cols-4">
         <MetricCard
           icon={<Banknote className="h-5 w-5" />}
-          label="Gross sales"
+          label="Sales entered"
           value={formatMoney(summary.grossSalesToday)}
-          detail="Today’s live sales"
+          detail="Orders created today"
         />
         <MetricCard
-          icon={<CalendarDays className="h-5 w-5" />}
-          label="Attendance wages"
-          value={formatMoney(summary.wagesToday)}
-          detail="Locked attendance records"
+          icon={<CheckCircle2 className="h-5 w-5" />}
+          label="Sales received"
+          value={formatMoney(summary.paidSalesToday)}
+          detail="Counted in today’s EOD"
         />
         <MetricCard
-          icon={<Banknote className="h-5 w-5" />}
+          icon={<AlertCircle className="h-5 w-5" />}
+          label="Expenses"
+          value={formatMoney(summary.expensesToday)}
+          detail="Supplies, labor, and other costs"
+        />
+        <MetricCard
+          icon={<TrendingUp className="h-5 w-5" />}
           label="Net cash"
-          value={formatMoney(summary.grossSalesToday - summary.wagesToday)}
-          detail="Sales minus wages"
-        />
-        <MetricCard
-          icon={<History className="h-5 w-5" />}
-          label="Reports"
-          value={`${recentReports.length}`}
-          detail="Stored settlements"
+          value={formatMoney(summary.netCashToday)}
+          detail="Paid sales minus expenses"
         />
       </div>
 
@@ -139,7 +139,7 @@ export default async function EodPage({
             Close register
           </CardTitle>
           <CardDescription>
-            Only admins can process the settlement. This will insert ledger rows, mark attendance paid, and save the final report snapshot.
+            Only admins can process the settlement. This will save the final report snapshot and ledger rows.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap items-center justify-between gap-3">
@@ -179,8 +179,8 @@ export default async function EodPage({
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3 text-sm">
-                  <Badge variant="outline">Gross {formatMoney(report.gross_sales)}</Badge>
-                  <Badge variant="outline">Wages {formatMoney(report.total_wages_paid)}</Badge>
+                  <Badge variant="outline">Sales {formatMoney(report.paid_sales)}</Badge>
+                  <Badge variant="outline">Expenses {formatMoney(report.total_expenses)}</Badge>
                   <Badge variant="secondary">Net {formatMoney(report.net_cash)}</Badge>
                 </div>
               </div>

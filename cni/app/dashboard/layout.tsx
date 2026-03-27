@@ -26,10 +26,10 @@ export default async function DashboardLayout({
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <Link href="/dashboard" className="text-lg font-semibold tracking-tight">
-                Multi-Business ERP
+                C&I Business
               </Link>
               <p className="text-sm text-muted-foreground">
-                Laundromat and Water Refilling Station operations in one place
+                Sales, expenses, and end-of-day tracking in one place
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
@@ -37,7 +37,7 @@ export default async function DashboardLayout({
                 {profile.role}
               </Badge>
               <span className="text-sm text-muted-foreground">
-                {profile.full_name || user.email}
+                {profile.full_name || "Signed in"}
               </span>
               <LogoutButton />
             </div>

@@ -63,12 +63,16 @@ export default async function AttendancePage({
   searchParams?: Promise<{ success?: string; error?: string }>;
 }) {
   const { businessId } = await params;
+  redirect(`/dashboard/${businessId}`);
   const query = (await searchParams) ?? {};
   const { supabase, profile, user } = await getCurrentProfile();
 
   if (!profile || !user) {
     redirect("/auth/login");
   }
+
+  const currentProfile = profile!;
+  const currentUser = user!;
 
   const today = getManilaDateKey();
   const [summary, attendanceResult, profilesResult] = await Promise.all([
@@ -96,7 +100,7 @@ export default async function AttendancePage({
   const profiles = profilesResult.data ?? [];
   const attendance = attendanceResult.data ?? [];
   const profileMap = new Map(profiles.map((entry) => [entry.id, entry]));
-  const alreadyClockedIn = attendance.some((entry) => entry.user_id === user.id);
+  const alreadyClockedIn = attendance.some((entry) => entry.user_id === currentUser.id);
   const totalWages = attendance.reduce((sum, entry) => sum + Number(entry.wage_due), 0);
 
   return (
@@ -152,9 +156,9 @@ export default async function AttendancePage({
         </CardHeader>
         <CardContent className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="font-medium">{profile.full_name || user.email}</p>
+            <p className="font-medium">{currentProfile.full_name || "Signed in"}</p>
             <p className="text-sm text-muted-foreground">
-              Rate: {formatMoney(profile.daily_rate)} · Role: {profile.role}
+              Role: {currentProfile.role}
             </p>
           </div>
           <form action={clockInAction}>

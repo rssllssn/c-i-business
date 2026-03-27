@@ -7,25 +7,30 @@ export type Product = Database["public"]["Tables"]["products"]["Row"];
 export type Sale = Database["public"]["Tables"]["sales"]["Row"];
 export type SaleItem = Database["public"]["Tables"]["sale_items"]["Row"];
 export type Attendance = Database["public"]["Tables"]["daily_attendance"]["Row"];
+export type Expense = Database["public"]["Tables"]["expenses"]["Row"];
 export type EodReport = Database["public"]["Tables"]["eod_reports"]["Row"];
 export type Transaction = Database["public"]["Tables"]["transactions"]["Row"];
 export type SupabaseClient = SupabaseJsClient<Database>;
 
 export interface BusinessSummary {
   business: Business;
+  saleCountToday: number;
   grossSalesToday: number;
-  wagesToday: number;
-  attendanceCountToday: number;
-  productCount: number;
+  paidSalesToday: number;
+  unpaidBalanceToday: number;
+  expensesToday: number;
+  netCashToday: number;
   lowStockCount: number;
   latestReport: EodReport | null;
 }
 
 export interface DashboardOverview {
   businesses: BusinessSummary[];
-  totalStaffCount: number;
+  saleCountToday: number;
   grossSalesToday: number;
-  wagesToday: number;
+  paidSalesToday: number;
+  unpaidBalanceToday: number;
+  expensesToday: number;
   netCashToday: number;
 }
 
@@ -80,24 +85,20 @@ export async function getDashboardOverview(
     businesses.map((business) => getBusinessSummary(supabase, business.id)),
   );
 
-  const { count: totalStaffCount, error: staffCountError } = await supabase
-    .from("profiles")
-    .select("id", { count: "exact", head: true })
-    .eq("role", "staff");
-
-  if (staffCountError) {
-    throw staffCountError;
-  }
-
+  const saleCountToday = summaries.reduce((sum, summary) => sum + summary.saleCountToday, 0);
   const grossSalesToday = summaries.reduce((sum, summary) => sum + summary.grossSalesToday, 0);
-  const wagesToday = summaries.reduce((sum, summary) => sum + summary.wagesToday, 0);
+  const paidSalesToday = summaries.reduce((sum, summary) => sum + summary.paidSalesToday, 0);
+  const unpaidBalanceToday = summaries.reduce((sum, summary) => sum + summary.unpaidBalanceToday, 0);
+  const expensesToday = summaries.reduce((sum, summary) => sum + summary.expensesToday, 0);
 
   return {
     businesses: summaries,
-    totalStaffCount: totalStaffCount ?? 0,
+    saleCountToday,
     grossSalesToday,
-    wagesToday,
-    netCashToday: grossSalesToday - wagesToday,
+    paidSalesToday,
+    unpaidBalanceToday,
+    expensesToday,
+    netCashToday: paidSalesToday - expensesToday,
   };
 }
 
@@ -107,40 +108,43 @@ export async function getBusinessSummary(
 ): Promise<BusinessSummary> {
   const today = getManilaDateKey();
 
-  const [businessResult, salesResult, attendanceResult, productResult, lowStockResult, reportResult] =
-    await Promise.all([
-      supabase
-        .from("businesses")
-        .select("id, name, created_at")
-        .eq("id", businessId)
-        .maybeSingle(),
-      supabase
-        .from("sales")
-        .select("total_amount")
-        .eq("business_id", businessId)
-        .gte("created_at", `${today}T00:00:00+08:00`)
-        .lt("created_at", `${today}T23:59:59.999+08:00`),
-      supabase
-        .from("daily_attendance")
-        .select("id, wage_due")
-        .eq("business_id", businessId)
-        .eq("work_date", today),
-      supabase
-        .from("products")
-        .select("id")
-        .eq("business_id", businessId),
-      supabase
-        .from("products")
-        .select("id")
-        .eq("business_id", businessId)
-        .lte("stock_level", 5),
-      supabase
-        .from("eod_reports")
-        .select("id, business_id, report_date, gross_sales, total_wages_paid, net_cash, closed_by, created_at")
-        .eq("business_id", businessId)
-        .eq("report_date", today)
-        .maybeSingle(),
-    ]);
+  const [businessResult, createdSalesResult, paidSalesResult, unpaidSalesResult, expensesResult, reportResult] = await Promise.all([
+    supabase
+      .from("businesses")
+      .select("id, name, created_at")
+      .eq("id", businessId)
+      .maybeSingle(),
+    supabase
+      .from("sales")
+      .select("total_amount, is_paid")
+      .eq("business_id", businessId)
+      .gte("created_at", `${today}T00:00:00+08:00`)
+      .lt("created_at", `${today}T23:59:59.999+08:00`),
+    supabase
+      .from("sales")
+      .select("total_amount")
+      .eq("business_id", businessId)
+      .eq("is_paid", true)
+      .gte("paid_at", `${today}T00:00:00+08:00`)
+      .lt("paid_at", `${today}T23:59:59.999+08:00`),
+    supabase
+      .from("sales")
+      .select("total_amount")
+      .eq("business_id", businessId)
+      .eq("is_paid", false),
+    supabase
+      .from("expenses")
+      .select("amount")
+      .eq("business_id", businessId)
+      .gte("created_at", `${today}T00:00:00+08:00`)
+      .lt("created_at", `${today}T23:59:59.999+08:00`),
+    supabase
+      .from("eod_reports")
+      .select("id, business_id, report_date, gross_sales, paid_sales, total_expenses, net_cash, closed_by, created_at")
+      .eq("business_id", businessId)
+      .eq("report_date", today)
+      .maybeSingle(),
+  ]);
 
   if (businessResult.error) {
     throw businessResult.error;
@@ -150,42 +154,46 @@ export async function getBusinessSummary(
     throw new Error("Business not found");
   }
 
-  if (salesResult.error) {
-    throw salesResult.error;
+  if (createdSalesResult.error) {
+    throw createdSalesResult.error;
   }
 
-  if (attendanceResult.error) {
-    throw attendanceResult.error;
+  if (paidSalesResult.error) {
+    throw paidSalesResult.error;
   }
 
-  if (productResult.error) {
-    throw productResult.error;
+  if (unpaidSalesResult.error) {
+    throw unpaidSalesResult.error;
   }
 
-  if (lowStockResult.error) {
-    throw lowStockResult.error;
+  if (expensesResult.error) {
+    throw expensesResult.error;
   }
 
   if (reportResult.error) {
     throw reportResult.error;
   }
 
-  const grossSalesToday = (salesResult.data ?? []).reduce(
-    (sum, sale) => sum + Number(sale.total_amount),
-    0,
-  );
-  const wagesToday = (attendanceResult.data ?? []).reduce(
-    (sum, attendance) => sum + Number(attendance.wage_due),
-    0,
-  );
+  const sales = createdSalesResult.data ?? [];
+  const paidSales = paidSalesResult.data ?? [];
+  const unpaidSales = unpaidSalesResult.data ?? [];
+  const expenses = expensesResult.data ?? [];
+  const saleCountToday = sales.length;
+  const grossSalesToday = sales.reduce((sum, sale) => sum + Number(sale.total_amount), 0);
+  const paidSalesToday = paidSales.reduce((sum, sale) => sum + Number(sale.total_amount), 0);
+  const unpaidBalanceToday = unpaidSales.reduce((sum, sale) => sum + Number(sale.total_amount), 0);
+  const expensesToday = expenses.reduce((sum, expense) => sum + Number(expense.amount), 0);
+  const netCashToday = paidSalesToday - expensesToday;
 
   return {
     business: businessResult.data,
+    saleCountToday,
     grossSalesToday,
-    wagesToday,
-    attendanceCountToday: attendanceResult.data?.length ?? 0,
-    productCount: productResult.data?.length ?? 0,
-    lowStockCount: lowStockResult.data?.length ?? 0,
+    paidSalesToday,
+    unpaidBalanceToday,
+    expensesToday,
+    netCashToday,
+    lowStockCount: 0,
     latestReport: reportResult.data ?? null,
   };
 }

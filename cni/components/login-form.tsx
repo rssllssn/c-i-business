@@ -50,9 +50,9 @@ export function LoginForm({
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl">Login</CardTitle>
+          <CardTitle className="text-2xl">Welcome back</CardTitle>
           <CardDescription>
-            Enter your username below to login to your account
+            Use your username and password to open the dashboard.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -64,6 +64,10 @@ export function LoginForm({
                   id="username"
                   type="text"
                   placeholder="johndoe"
+                  autoComplete="username"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                   required
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
@@ -76,6 +80,7 @@ export function LoginForm({
                 <Input
                   id="password"
                   type="password"
+                  autoComplete="current-password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}

@@ -9,9 +9,8 @@ const defaultUrl = process.env.VERCEL_URL
 
 export const metadata: Metadata = {
   metadataBase: new URL(defaultUrl),
-  title: "Multi-Business ERP Dashboard",
-  description:
-    "Unified POS, inventory, attendance, and end-of-day settlement for the laundromat and water refilling station.",
+  title: "C&I Business",
+  description: "Simple sales, expenses, and end-of-day tracking for C&I Business.",
 };
 
 const geistSans = Geist({
@@ -30,7 +29,7 @@ export default function RootLayout({
       <body className={`${geistSans.className} antialiased`}>
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
+          defaultTheme="light"
           enableSystem
           disableTransitionOnChange
         >
