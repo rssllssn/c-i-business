@@ -24,6 +24,46 @@ alter table public.sales
   alter column customer_name set not null,
   alter column item_description set not null;
 
+alter table public.sales enable row level security;
+
+drop policy if exists "sales_select_authenticated" on public.sales;
+create policy "sales_select_authenticated"
+on public.sales
+for select
+to authenticated
+using (auth.uid() is not null);
+
+drop policy if exists "sales_insert_owner_or_admin" on public.sales;
+create policy "sales_insert_owner_or_admin"
+on public.sales
+for insert
+to authenticated
+with check (user_id = auth.uid() or public.is_admin());
+
+drop policy if exists "sales_manage_admin" on public.sales;
+create policy "sales_manage_admin"
+on public.sales
+for update
+to authenticated
+using (
+  public.is_admin()
+  and timezone('Asia/Manila', created_at)::date = timezone('Asia/Manila', now())::date
+)
+with check (
+  public.is_admin()
+  and timezone('Asia/Manila', created_at)::date = timezone('Asia/Manila', now())::date
+);
+
+drop policy if exists "sales_delete_admin" on public.sales;
+create policy "sales_delete_admin"
+on public.sales
+for delete
+to authenticated
+using (
+  public.is_admin()
+  and timezone('Asia/Manila', created_at)::date = timezone('Asia/Manila', now())::date
+);
+
 create table if not exists public.expenses (
   id uuid primary key default gen_random_uuid(),
   business_id uuid not null references public.businesses(id) on delete cascade,
@@ -54,15 +94,24 @@ create policy "expenses_update_admin"
 on public.expenses
 for update
 to authenticated
-using (public.is_admin())
-with check (public.is_admin());
+using (
+  public.is_admin()
+  and timezone('Asia/Manila', created_at)::date = timezone('Asia/Manila', now())::date
+)
+with check (
+  public.is_admin()
+  and timezone('Asia/Manila', created_at)::date = timezone('Asia/Manila', now())::date
+);
 
 drop policy if exists "expenses_delete_admin" on public.expenses;
 create policy "expenses_delete_admin"
 on public.expenses
 for delete
 to authenticated
-using (public.is_admin());
+using (
+  public.is_admin()
+  and timezone('Asia/Manila', created_at)::date = timezone('Asia/Manila', now())::date
+);
 
 alter table public.eod_reports
   add column if not exists paid_sales numeric(12, 2) not null default 0,
@@ -72,19 +121,6 @@ update public.eod_reports
 set
   paid_sales = case when paid_sales = 0 then gross_sales else paid_sales end,
   total_expenses = case when total_expenses = 0 then coalesce(total_wages_paid, 0) else total_expenses end;
-
-drop trigger if exists sale_items_business_match on public.sale_items;
-drop trigger if exists set_attendance_wage_due on public.daily_attendance;
-drop trigger if exists prevent_attendance_wage_change on public.daily_attendance;
-
-drop function if exists public.create_sale(uuid, jsonb);
-drop function if exists public.ensure_sale_item_business_match();
-drop function if exists public.sync_attendance_wage_due();
-drop function if exists public.prevent_attendance_wage_change();
-
-drop table if exists public.sale_items cascade;
-drop table if exists public.daily_attendance cascade;
-drop table if exists public.products cascade;
 
 create or replace function public.sync_sale_paid_at()
 returns trigger
@@ -194,8 +230,39 @@ begin
 end;
 $$;
 
+create or replace function public.mark_sale_paid(p_business_id uuid, p_sale_id uuid)
+returns public.sales
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_sale public.sales%rowtype;
+begin
+  update public.sales
+  set
+    is_paid = true,
+    paid_at = coalesce(paid_at, now())
+  where id = p_sale_id
+    and business_id = p_business_id
+  returning * into v_sale;
+
+  if not found then
+    raise exception 'Sale not found';
+  end if;
+
+  return v_sale;
+end;
+$$;
+
 revoke all on function public.process_end_of_day(uuid) from public;
 grant execute on function public.process_end_of_day(uuid) to authenticated;
+
+revoke all on function public.mark_sale_paid(uuid, uuid) from public;
+grant execute on function public.mark_sale_paid(uuid, uuid) to authenticated;
+
+revoke all on function public.is_admin() from public;
+grant execute on function public.is_admin() to authenticated;
 
 grant usage on schema public to authenticated;
 grant select, insert, update, delete on table public.expenses to authenticated;
@@ -205,5 +272,7 @@ grant select, insert, update, delete on table public.businesses to authenticated
 grant select, insert, update, delete on table public.profiles to authenticated;
 grant select, insert, update, delete on table public.eod_reports to authenticated;
 grant select, insert, update, delete on table public.transactions to authenticated;
+
+notify pgrst, 'reload schema';
 
 commit;

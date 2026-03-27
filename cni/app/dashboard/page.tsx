@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
-  ArrowRight,
   Banknote,
   AlertCircle,
   ClipboardList,
@@ -112,14 +111,6 @@ export default async function DashboardPage() {
         badge="Overview"
         title="C&I Business operations dashboard"
         description="Monitor sales, expenses, unpaid balances, and end-of-day settlement across both businesses from one control panel."
-        actions={
-          <Button asChild variant="outline">
-            <Link href="/dashboard/admin/employees">
-              Employee admin
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </Button>
-        }
       />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">

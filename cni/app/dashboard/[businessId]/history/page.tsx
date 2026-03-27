@@ -24,7 +24,13 @@ import {
   type Expense,
   type Sale,
 } from "@/lib/erp";
-import { markSalePaidAction } from "./actions";
+import {
+  deleteExpenseAction,
+  deleteSaleAction,
+  markSalePaidAction,
+  updateExpenseAction,
+  updateSaleAction,
+} from "./actions";
 
 const dateTimeFormatter = new Intl.DateTimeFormat("en-PH", {
   dateStyle: "medium",
@@ -88,7 +94,8 @@ export default async function DailyHistoryPage({
     redirect("/auth/login");
   }
 
-  const selectedDate = isDateKey(query.date) ? query.date : getManilaDateKey();
+  const todayDateKey = getManilaDateKey();
+  const selectedDate = isDateKey(query.date) ? query.date : todayDateKey;
   const selectedDateLabel = formatDateLabel(selectedDate);
   const selectedDateBounds = getManilaDateBounds(selectedDate);
   const selectedDayEndMs = new Date(selectedDateBounds.end).getTime();
@@ -198,6 +205,20 @@ export default async function DailyHistoryPage({
     salesEntered.filter((sale) => !salePaidByDayEnd(sale, selectedDayEndMs)),
   );
   const netCashTotal = salesReceivedTotal - expensesTotal;
+  const isAdmin = profile.role === "admin";
+  const canEditOpenTransactions = isAdmin && selectedDate === todayDateKey && !report;
+  const successMessage =
+    query.success === "paid"
+      ? "Sale marked as paid."
+      : query.success === "sale-updated"
+        ? "Sale updated."
+        : query.success === "sale-deleted"
+          ? "Sale deleted."
+          : query.success === "expense-updated"
+            ? "Expense updated."
+            : query.success === "expense-deleted"
+              ? "Expense deleted."
+              : null;
 
   return (
     <div className="space-y-8">
@@ -207,11 +228,11 @@ export default async function DailyHistoryPage({
         description={`Review sales entered, payments received, and expenses for ${selectedDateLabel}. Paid sales count on the day they are paid.`}
       />
 
-      {query.success === "paid" ? (
+      {successMessage ? (
         <Card className="border-emerald-500/30 bg-emerald-500/5 shadow-sm">
           <CardContent className="flex items-center gap-3 p-4 text-sm text-emerald-700 dark:text-emerald-300">
             <CheckCircle2 className="h-4 w-4" />
-            Sale marked as paid.
+            {successMessage}
           </CardContent>
         </Card>
       ) : null}
@@ -221,6 +242,15 @@ export default async function DailyHistoryPage({
           <CardContent className="flex items-center gap-3 p-4 text-sm text-destructive">
             <AlertCircle className="h-4 w-4" />
             {query.error}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {canEditOpenTransactions ? (
+        <Card className="border-amber-500/30 bg-amber-500/5 shadow-sm">
+          <CardContent className="flex items-center gap-3 p-4 text-sm text-amber-700 dark:text-amber-300">
+            <Clock3 className="h-4 w-4" />
+            Admin correction mode is enabled for today’s open transactions.
           </CardContent>
         </Card>
       ) : null}
@@ -321,24 +351,76 @@ export default async function DailyHistoryPage({
                   const paidByDayEnd = salePaidByDayEnd(sale, selectedDayEndMs);
 
                   return (
-                    <div
-                      key={sale.id}
-                      className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-border/60 p-4"
-                    >
-                      <div className="space-y-1">
-                        <p className="font-medium">{sale.customer_name || "Walk-in customer"}</p>
-                        <p className="text-sm text-muted-foreground">{sale.item_description}</p>
-                        <p className="text-xs text-muted-foreground">
-                          Created {formatDateTime(sale.created_at)}
-                          {sale.paid_at ? ` · Paid ${formatDateTime(sale.paid_at)}` : ""}
-                        </p>
+                    <div key={sale.id} className="space-y-3 rounded-lg border border-border/60 p-4">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="space-y-1">
+                          <p className="font-medium">{sale.customer_name || "Walk-in customer"}</p>
+                          <p className="text-sm text-muted-foreground">{sale.item_description}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Created {formatDateTime(sale.created_at)}
+                            {sale.paid_at ? ` · Paid ${formatDateTime(sale.paid_at)}` : ""}
+                          </p>
+                        </div>
+                        <div className="flex flex-col items-end gap-2 text-right">
+                          <p className="font-semibold">{formatMoney(sale.total_amount)}</p>
+                          <Badge variant={paidByDayEnd ? "secondary" : "outline"}>
+                            {paidByDayEnd ? "Paid by day end" : "Unpaid by day end"}
+                          </Badge>
+                        </div>
                       </div>
-                      <div className="flex flex-col items-end gap-2 text-right">
-                        <p className="font-semibold">{formatMoney(sale.total_amount)}</p>
-                        <Badge variant={paidByDayEnd ? "secondary" : "outline"}>
-                          {paidByDayEnd ? "Paid by day end" : "Unpaid by day end"}
-                        </Badge>
-                      </div>
+
+                      {canEditOpenTransactions ? (
+                        <div className="space-y-4 rounded-lg border border-amber-500/20 bg-amber-500/5 p-4">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
+                            Admin correction
+                          </p>
+                          <form action={updateSaleAction} className="grid gap-3 md:grid-cols-3">
+                            <input type="hidden" name="businessId" value={businessId} />
+                            <input type="hidden" name="saleId" value={sale.id} />
+                            <input type="hidden" name="selectedDate" value={selectedDate} />
+                            <div className="grid gap-2 md:col-span-1">
+                              <Label htmlFor={`sale-customer-${sale.id}`}>Customer</Label>
+                              <Input
+                                id={`sale-customer-${sale.id}`}
+                                name="customerName"
+                                defaultValue={sale.customer_name}
+                              />
+                            </div>
+                            <div className="grid gap-2 md:col-span-1">
+                              <Label htmlFor={`sale-item-${sale.id}`}>Description</Label>
+                              <Input
+                                id={`sale-item-${sale.id}`}
+                                name="itemDescription"
+                                defaultValue={sale.item_description}
+                              />
+                            </div>
+                            <div className="grid gap-2 md:col-span-1">
+                              <Label htmlFor={`sale-amount-${sale.id}`}>Amount</Label>
+                              <Input
+                                id={`sale-amount-${sale.id}`}
+                                name="totalAmount"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                defaultValue={sale.total_amount}
+                              />
+                            </div>
+                            <div className="md:col-span-3">
+                              <Button type="submit" size="sm">
+                                Save changes
+                              </Button>
+                            </div>
+                          </form>
+                          <form action={deleteSaleAction} className="flex justify-end">
+                            <input type="hidden" name="businessId" value={businessId} />
+                            <input type="hidden" name="saleId" value={sale.id} />
+                            <input type="hidden" name="selectedDate" value={selectedDate} />
+                            <Button type="submit" size="sm" variant="destructive">
+                              Delete sale
+                            </Button>
+                          </form>
+                        </div>
+                      ) : null}
                     </div>
                   );
                 })
@@ -401,15 +483,59 @@ export default async function DailyHistoryPage({
             <CardContent className="space-y-3">
               {expenses.length > 0 ? (
                 expenses.map((expense) => (
-                  <div
-                    key={expense.id}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/60 p-4"
-                  >
-                    <div className="space-y-1">
-                      <p className="font-medium">{expense.description}</p>
-                      <p className="text-xs text-muted-foreground">Logged {formatDateTime(expense.created_at)}</p>
+                  <div key={expense.id} className="space-y-3 rounded-lg border border-border/60 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="space-y-1">
+                        <p className="font-medium">{expense.description}</p>
+                        <p className="text-xs text-muted-foreground">Logged {formatDateTime(expense.created_at)}</p>
+                      </div>
+                      <p className="font-semibold">{formatMoney(expense.amount)}</p>
                     </div>
-                    <p className="font-semibold">{formatMoney(expense.amount)}</p>
+
+                    {canEditOpenTransactions ? (
+                      <div className="space-y-4 rounded-lg border border-amber-500/20 bg-amber-500/5 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
+                          Admin correction
+                        </p>
+                        <form action={updateExpenseAction} className="grid gap-3 md:grid-cols-[minmax(0,1fr)_160px_auto]">
+                          <input type="hidden" name="businessId" value={businessId} />
+                          <input type="hidden" name="expenseId" value={expense.id} />
+                          <input type="hidden" name="selectedDate" value={selectedDate} />
+                          <div className="grid gap-2">
+                            <Label htmlFor={`expense-description-${expense.id}`}>Description</Label>
+                            <Input
+                              id={`expense-description-${expense.id}`}
+                              name="description"
+                              defaultValue={expense.description}
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor={`expense-amount-${expense.id}`}>Amount</Label>
+                            <Input
+                              id={`expense-amount-${expense.id}`}
+                              name="amount"
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              defaultValue={expense.amount}
+                            />
+                          </div>
+                          <div className="flex items-end">
+                            <Button type="submit" size="sm">
+                              Save changes
+                            </Button>
+                          </div>
+                        </form>
+                        <form action={deleteExpenseAction} className="flex justify-end">
+                          <input type="hidden" name="businessId" value={businessId} />
+                          <input type="hidden" name="expenseId" value={expense.id} />
+                          <input type="hidden" name="selectedDate" value={selectedDate} />
+                          <Button type="submit" size="sm" variant="destructive">
+                            Delete expense
+                          </Button>
+                        </form>
+                      </div>
+                    ) : null}
                   </div>
                 ))
               ) : (

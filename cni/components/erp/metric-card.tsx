@@ -12,7 +12,7 @@ interface MetricCardProps {
 export function MetricCard({ icon, label, value, detail }: MetricCardProps) {
   return (
     <Card className="border-border/60 shadow-sm">
-      <CardContent className="flex items-start gap-4 p-5">
+      <CardContent className="flex flex-col items-center gap-3 p-5 text-center">
         <div className="rounded-lg bg-muted p-3 text-muted-foreground">{icon}</div>
         <div className="space-y-1">
           <p className="text-sm text-muted-foreground">{label}</p>
