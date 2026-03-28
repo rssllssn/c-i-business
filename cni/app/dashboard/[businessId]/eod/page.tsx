@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { AlertCircle, Banknote, CheckCircle2, Lock, TrendingUp } from "lucide-react";
 
 import { MetricCard } from "@/components/erp/metric-card";
@@ -59,7 +59,11 @@ export default async function EodPage({
   const { supabase, profile } = await getCurrentProfile();
 
   if (!profile) {
-    redirect("/auth/login");
+    notFound();
+  }
+
+  if (profile.role !== "admin") {
+    redirect(`/dashboard/${businessId}/pos`);
   }
 
   const [summary, recentReportsResult] = await Promise.all([

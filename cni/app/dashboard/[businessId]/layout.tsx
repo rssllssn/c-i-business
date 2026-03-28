@@ -4,6 +4,7 @@ import { type ReactNode } from "react";
 import {
   Banknote,
   CalendarDays,
+  BarChart3,
   LayoutDashboard,
   ReceiptText,
   Store,
@@ -23,24 +24,35 @@ const moduleLinks = [
     icon: LayoutDashboard,
     label: "Business overview",
     description: "Sales, expenses, and settlement",
+    adminOnly: true,
   },
   {
     href: (businessId: string) => `/dashboard/${businessId}/pos`,
     icon: ReceiptText,
     label: "POS",
     description: "Create sales and log expenses",
+    adminOnly: false,
   },
   {
     href: (businessId: string) => `/dashboard/${businessId}/eod`,
     icon: Banknote,
     label: "End of day",
     description: "Close the register",
+    adminOnly: true,
   },
   {
     href: (businessId: string) => `/dashboard/${businessId}/history`,
     icon: CalendarDays,
     label: "Daily history",
     description: "Review sales from any day",
+    adminOnly: true,
+  },
+  {
+    href: (businessId: string) => `/dashboard/${businessId}/reports`,
+    icon: BarChart3,
+    label: "Reports",
+    description: "Weekly and monthly results",
+    adminOnly: true,
   },
 ];
 
@@ -57,6 +69,9 @@ export default async function BusinessLayout({
   if (!profile || !user) {
     redirect("/auth/login");
   }
+
+  const isAdmin = profile.role === "admin";
+  const visibleModuleLinks = moduleLinks.filter((module) => !module.adminOnly || isAdmin);
 
   const [businessSummary, businesses] = await Promise.all([
     getBusinessSummary(supabase, businessId).catch(() => null),
@@ -122,7 +137,6 @@ export default async function BusinessLayout({
               </div>
               <div className="flex flex-wrap gap-2">
                 <Badge variant="outline">{businessSummary.saleCountToday} sales today</Badge>
-                <Badge variant="outline">Unpaid {formatMoney(businessSummary.unpaidBalanceToday)}</Badge>
               </div>
             </CardContent>
           </Card>
@@ -131,7 +145,7 @@ export default async function BusinessLayout({
             <CardContent className="space-y-2 p-4">
               <p className="text-sm font-medium">Modules</p>
               <div className="space-y-2">
-                {moduleLinks.map((module) => {
+                {visibleModuleLinks.map((module) => {
                   const Icon = module.icon;
                   return (
                     <Button key={module.label} asChild variant="ghost" className="w-full justify-start">

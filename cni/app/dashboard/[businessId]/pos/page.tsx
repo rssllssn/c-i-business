@@ -43,8 +43,19 @@ export default async function PosPage({
     end: `${today}T23:59:59.999+08:00`,
     start: `${today}T00:00:00+08:00`,
   };
+  const isAdmin = profile.role === "admin";
+  let openSalesQuery = supabase
+    .from("sales")
+    .select("id, customer_name, item_description, total_amount, is_paid, paid_at, created_at")
+    .eq("business_id", businessId)
+    .eq("is_paid", false)
+    .order("created_at", { ascending: false });
 
-  const [summary, todaySalesResult, openSalesResult, recentReportsResult] = await Promise.all([
+  if (!isAdmin) {
+    openSalesQuery = openSalesQuery.gte("created_at", todayBounds.start).lt("created_at", todayBounds.end);
+  }
+
+  const [summary, todaySalesResult, openSalesResult] = await Promise.all([
     getBusinessSummary(supabase, businessId),
     supabase
       .from("sales")
@@ -53,20 +64,17 @@ export default async function PosPage({
       .gte("created_at", todayBounds.start)
       .lt("created_at", todayBounds.end)
       .order("created_at", { ascending: false }),
-    supabase
-      .from("sales")
-      .select("id, customer_name, item_description, total_amount, is_paid, paid_at, created_at")
-      .eq("business_id", businessId)
-      .eq("is_paid", false)
-      .order("created_at", { ascending: false })
-      .limit(8),
-    supabase
-      .from("eod_reports")
-      .select("id, business_id, report_date, gross_sales, paid_sales, total_expenses, net_cash, closed_by, created_at")
-      .eq("business_id", businessId)
-      .order("report_date", { ascending: false })
-      .limit(6),
+    openSalesQuery,
   ]);
+
+  const recentReportsResult = isAdmin
+    ? await supabase
+        .from("eod_reports")
+        .select("id, business_id, report_date, gross_sales, paid_sales, total_expenses, net_cash, closed_by, created_at")
+        .eq("business_id", businessId)
+        .order("report_date", { ascending: false })
+        .limit(6)
+    : { data: [], error: null };
 
   if (todaySalesResult.error) {
     throw todaySalesResult.error;
@@ -83,6 +91,9 @@ export default async function PosPage({
   const todaySales = (todaySalesResult.data ?? []) as PosSale[];
   const openSales = (openSalesResult.data ?? []) as PosSale[];
   const recentReports = recentReportsResult.data ?? [];
+  const todayUnpaidBalance = todaySales
+    .filter((sale) => !sale.is_paid)
+    .reduce((sum, sale) => sum + Number(sale.total_amount), 0);
 
   return (
     <div className="space-y-8">
@@ -162,10 +173,14 @@ export default async function PosPage({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <Badge variant="outline">Unpaid {formatMoney(summary.unpaidBalanceToday)}</Badge>
         <Badge variant="outline">
-          {summary.latestReport ? `Last closed ${formatDate(summary.latestReport.report_date)}` : "Not yet closed"}
+          {isAdmin ? `Unpaid ${formatMoney(summary.unpaidBalanceToday)}` : `Today's unpaid ${formatMoney(todayUnpaidBalance)}`}
         </Badge>
+        {isAdmin ? (
+          <Badge variant="outline">
+            {summary.latestReport ? `Last closed ${formatDate(summary.latestReport.report_date)}` : "Not yet closed"}
+          </Badge>
+        ) : null}
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
@@ -221,10 +236,12 @@ export default async function PosPage({
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Clock3 className="h-5 w-5" />
-                Outstanding balances
+                {isAdmin ? "Outstanding balances" : "Today's unpaid sales"}
               </CardTitle>
               <CardDescription>
-                Mark sales as paid when customers settle later, even on a different day.
+                {isAdmin
+                  ? "Mark sales as paid when customers settle later, even on a different day."
+                  : "Mark unpaid sales from today as paid before closing the day."}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -253,44 +270,46 @@ export default async function PosPage({
                 ))
               ) : (
                 <div className="rounded-lg border border-dashed border-border/60 p-6 text-sm text-muted-foreground">
-                  No unpaid sales right now.
+                  {isAdmin ? "No unpaid sales right now." : "No unpaid sales were entered today."}
                 </div>
               )}
             </CardContent>
           </Card>
 
-          <Card className="border-border/60 shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <History className="h-5 w-5" />
-                Recent closed days
-              </CardTitle>
-              <CardDescription>
-                Jump to previous days if you need the full history view.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {recentReports.length > 0 ? (
-                recentReports.map((report) => (
-                  <Button key={report.id} asChild variant="ghost" className="h-auto w-full justify-between py-3">
-                    <Link href={`/dashboard/${businessId}/history?date=${report.report_date}`}>
-                      <span className="text-left">
-                        <span className="block font-medium">{formatDate(report.report_date)}</span>
-                        <span className="block text-xs text-muted-foreground">
-                          Closed {formatDateTime(report.created_at)}
+          {isAdmin ? (
+            <Card className="border-border/60 shadow-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <History className="h-5 w-5" />
+                  Recent closed days
+                </CardTitle>
+                <CardDescription>
+                  Jump to previous days if you need the full history view.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {recentReports.length > 0 ? (
+                  recentReports.map((report) => (
+                    <Button key={report.id} asChild variant="ghost" className="h-auto w-full justify-between py-3">
+                      <Link href={`/dashboard/${businessId}/history?date=${report.report_date}`}>
+                        <span className="text-left">
+                          <span className="block font-medium">{formatDate(report.report_date)}</span>
+                          <span className="block text-xs text-muted-foreground">
+                            Closed {formatDateTime(report.created_at)}
+                          </span>
                         </span>
-                      </span>
-                      <span className="text-right text-sm font-semibold">{formatMoney(report.net_cash)}</span>
-                    </Link>
-                  </Button>
-                ))
-              ) : (
-                <div className="rounded-lg border border-dashed border-border/60 p-6 text-sm text-muted-foreground">
-                  No closed days yet.
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                        <span className="text-right text-sm font-semibold">{formatMoney(report.net_cash)}</span>
+                      </Link>
+                    </Button>
+                  ))
+                ) : (
+                  <div className="rounded-lg border border-dashed border-border/60 p-6 text-sm text-muted-foreground">
+                    No closed days yet.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ) : null}
         </div>
       </div>
     </div>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import {
   AlertCircle,
   Banknote,
@@ -26,6 +26,10 @@ export default async function BusinessOverviewPage({
 
   if (!profile) {
     notFound();
+  }
+
+  if (profile.role !== "admin") {
+    redirect(`/dashboard/${businessId}/pos`);
   }
 
   const summary = await getBusinessSummary(supabase, businessId);

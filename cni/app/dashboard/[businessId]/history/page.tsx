@@ -94,6 +94,10 @@ export default async function DailyHistoryPage({
     redirect("/auth/login");
   }
 
+  if (profile.role !== "admin") {
+    redirect(`/dashboard/${businessId}/pos`);
+  }
+
   const todayDateKey = getManilaDateKey();
   const selectedDate = isDateKey(query.date) ? query.date : todayDateKey;
   const selectedDateLabel = formatDateLabel(selectedDate);

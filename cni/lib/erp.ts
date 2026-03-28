@@ -31,6 +31,22 @@ export interface DashboardOverview {
   netCashToday: number;
 }
 
+export interface ReportPeriodSummary {
+  key: string;
+  label: string;
+  startDate: string;
+  endDate: string;
+  reportCount: number;
+  paidSales: number;
+  totalExpenses: number;
+  netCash: number;
+}
+
+export interface BusinessReportData {
+  weekly: ReportPeriodSummary[];
+  monthly: ReportPeriodSummary[];
+}
+
 export const moneyFormatter = new Intl.NumberFormat("en-PH", {
   currency: "PHP",
   style: "currency",
@@ -47,6 +63,168 @@ export function formatMoney(value: number) {
 
 export function formatDate(value: string | Date) {
   return dateFormatter.format(typeof value === "string" ? new Date(value) : value);
+}
+
+function parseManilaDateKey(dateKey: string) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day));
+}
+
+function formatDateKey(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function addUtcDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setUTCDate(next.getUTCDate() + days);
+  return next;
+}
+
+function addUtcMonths(date: Date, months: number) {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + months, 1));
+}
+
+function startOfUtcWeek(date: Date) {
+  const start = new Date(date);
+  const day = start.getUTCDay();
+  const offset = (day + 6) % 7;
+  start.setUTCDate(start.getUTCDate() - offset);
+  start.setUTCHours(0, 0, 0, 0);
+  return start;
+}
+
+function startOfUtcMonth(date: Date) {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+}
+
+const reportWeekFormatter = new Intl.DateTimeFormat("en-PH", {
+  dateStyle: "medium",
+  timeZone: "Asia/Manila",
+});
+
+const reportMonthFormatter = new Intl.DateTimeFormat("en-PH", {
+  month: "short",
+  year: "numeric",
+  timeZone: "Asia/Manila",
+});
+
+function formatReportWeekLabel(start: Date, end: Date) {
+  return `${reportWeekFormatter.format(start)} – ${reportWeekFormatter.format(end)}`;
+}
+
+function formatReportMonthLabel(date: Date) {
+  return reportMonthFormatter.format(date);
+}
+
+function buildReportPeriods(
+  reports: Array<Pick<EodReport, "report_date" | "paid_sales" | "total_expenses" | "net_cash">>,
+  periods: Array<{ key: string; label: string; startDate: string; endDate: string }>,
+  periodKeyForReport: (reportDate: Date) => string,
+) {
+  const aggregates = new Map<
+    string,
+    {
+      paidSales: number;
+      totalExpenses: number;
+      netCash: number;
+      reportCount: number;
+    }
+  >();
+
+  for (const report of reports) {
+    const key = periodKeyForReport(parseManilaDateKey(report.report_date));
+    const current = aggregates.get(key) ?? {
+      paidSales: 0,
+      totalExpenses: 0,
+      netCash: 0,
+      reportCount: 0,
+    };
+
+    current.paidSales += Number(report.paid_sales);
+    current.totalExpenses += Number(report.total_expenses);
+    current.netCash += Number(report.net_cash);
+    current.reportCount += 1;
+    aggregates.set(key, current);
+  }
+
+  return periods.map((period) => {
+    const totals = aggregates.get(period.key) ?? {
+      paidSales: 0,
+      totalExpenses: 0,
+      netCash: 0,
+      reportCount: 0,
+    };
+
+    return {
+      ...period,
+      ...totals,
+    } satisfies ReportPeriodSummary;
+  }).filter((period) => period.reportCount > 0);
+}
+
+function buildWeeklyReportPeriods(
+  reports: Array<Pick<EodReport, "report_date" | "paid_sales" | "total_expenses" | "net_cash">>,
+  referenceDate: Date,
+) {
+  const currentWeekStart = startOfUtcWeek(referenceDate);
+  const periods = Array.from({ length: 8 }, (_, index) => {
+    const start = addUtcDays(currentWeekStart, -(7 - index) * 7);
+    const end = addUtcDays(start, 6);
+
+    return {
+      key: formatDateKey(startOfUtcWeek(start)),
+      label: formatReportWeekLabel(start, end),
+      startDate: formatDateKey(start),
+      endDate: formatDateKey(end),
+    };
+  });
+
+  return buildReportPeriods(reports, periods, (reportDate) => formatDateKey(startOfUtcWeek(reportDate)));
+}
+
+function buildMonthlyReportPeriods(
+  reports: Array<Pick<EodReport, "report_date" | "paid_sales" | "total_expenses" | "net_cash">>,
+  referenceDate: Date,
+) {
+  const currentMonthStart = startOfUtcMonth(referenceDate);
+  const periods = Array.from({ length: 6 }, (_, index) => {
+    const start = addUtcMonths(currentMonthStart, -(5 - index));
+    const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 0));
+
+    return {
+      key: formatDateKey(startOfUtcMonth(start)),
+      label: formatReportMonthLabel(start),
+      startDate: formatDateKey(start),
+      endDate: formatDateKey(end),
+    };
+  });
+
+  return buildReportPeriods(reports, periods, (reportDate) => formatDateKey(startOfUtcMonth(reportDate)));
+}
+
+export async function getBusinessReportData(supabase: SupabaseClient, businessId: string): Promise<BusinessReportData> {
+  const todayKey = getManilaDateKey();
+  const referenceDate = parseManilaDateKey(todayKey);
+  const oldestMonthStart = addUtcMonths(startOfUtcMonth(referenceDate), -5);
+
+  const { data, error } = await supabase
+    .from("eod_reports")
+    .select("report_date, paid_sales, total_expenses, net_cash")
+    .eq("business_id", businessId)
+    .gte("report_date", formatDateKey(oldestMonthStart))
+    .lte("report_date", todayKey)
+    .order("report_date", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  const reports = data ?? [];
+
+  return {
+    weekly: buildWeeklyReportPeriods(reports, referenceDate),
+    monthly: buildMonthlyReportPeriods(reports, referenceDate),
+  };
 }
 
 export function getManilaDateKey(date: Date = new Date()) {

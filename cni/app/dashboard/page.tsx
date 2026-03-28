@@ -17,6 +17,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import {
   formatDate,
   formatMoney,
+  getBusinesses,
   getCurrentProfile,
   getDashboardOverview,
   type BusinessSummary,
@@ -101,6 +102,41 @@ export default async function DashboardPage() {
 
   if (!profile) {
     redirect("/auth/login");
+  }
+
+  if (profile.role !== "admin") {
+    const businesses = await getBusinesses(supabase);
+
+    return (
+      <div className="space-y-8">
+        <PageHeader
+          badge="Staff access"
+          title="Choose a business"
+          description="Open POS to record today's sales. You can switch between businesses whenever you need to work on a different branch."
+        />
+
+        <div className="grid gap-4 md:grid-cols-2">
+          {businesses.map((business) => (
+            <Card key={business.id} className="border-border/60 shadow-sm">
+              <CardContent className="flex items-center justify-between gap-4 p-5">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-lg bg-muted p-3 text-muted-foreground">
+                    <Store className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-lg font-semibold">{business.name}</p>
+                    <p className="text-sm text-muted-foreground">Tap to open today’s POS screen.</p>
+                  </div>
+                </div>
+                <Button asChild>
+                  <Link href={`/dashboard/${business.id}/pos`}>Open POS</Link>
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
   }
 
   const overview = await getDashboardOverview(supabase);

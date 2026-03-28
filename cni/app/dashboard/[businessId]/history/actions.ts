@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { getCurrentProfile, getManilaDateKey } from "@/lib/erp";
-import { createClient } from "@/lib/supabase/server";
 
 function getBusinessId(formData: FormData) {
   return String(formData.get("businessId") ?? "").trim();
@@ -40,17 +39,6 @@ function getTargetPath(formData: FormData, businessId: string) {
   }
 
   return `/dashboard/${businessId}/history${selectedDate ? `?date=${encodeURIComponent(selectedDate)}` : ""}`;
-}
-
-async function getAuthedClient() {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getUser();
-
-  if (!data.user) {
-    redirect("/auth/login");
-  }
-
-  return supabase;
 }
 
 async function getAdminClient() {
@@ -168,7 +156,16 @@ export async function markSalePaidAction(formData: FormData) {
   const fallbackPath = `/dashboard/${businessId}/history${selectedDate ? `?date=${encodeURIComponent(selectedDate)}` : ""}`;
   const targetPath = returnPath || fallbackPath;
 
-  const supabase = await getAuthedClient();
+  const { supabase, profile } = await getCurrentProfile();
+
+  if (!profile) {
+    redirect("/auth/login");
+  }
+
+  if (profile.role !== "admin") {
+    await loadSaleForEdit(supabase, businessId, saleId, targetPath);
+  }
+
   const { error } = await supabase.rpc("mark_sale_paid", {
     p_business_id: businessId,
     p_sale_id: saleId,
