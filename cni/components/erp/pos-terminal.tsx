@@ -83,14 +83,13 @@ export function PosTerminal({ businessId, submitSaleAction, submitExpenseAction 
               </div>
 
               <div className="grid gap-2 md:col-span-2">
-                <Label htmlFor="sale-item-description">Item or service description</Label>
+                <Label htmlFor="sale-item-description">Item or service description <span className="text-muted-foreground">(optional)</span></Label>
                 <textarea
                   id="sale-item-description"
                   name="itemDescription"
                   rows={4}
                   placeholder="Laundry service, water refill, and so on"
                   className="min-h-28 rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                  required
                 />
               </div>
 

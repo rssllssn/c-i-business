@@ -309,9 +309,16 @@ export default async function DailyHistoryPage({
         </Card>
         <Card className="border-border/60 shadow-sm">
           <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Transactions paid</p>
+            <p className="mt-1 text-xl font-semibold">{paymentsReceived.length}</p>
+            <p className="mt-1 text-xs text-muted-foreground">Sales that counted toward cash today</p>
+          </CardContent>
+        </Card>
+        <Card className="border-border/60 shadow-sm">
+          <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">Payments received</p>
             <p className="mt-1 text-xl font-semibold">{formatMoney(salesReceivedTotal)}</p>
-            <p className="mt-1 text-xs text-muted-foreground">{paymentsReceived.length} payments counted today</p>
+            <p className="mt-1 text-xs text-muted-foreground">Total cash from paid sales</p>
           </CardContent>
         </Card>
         <Card className="border-border/60 shadow-sm">
@@ -391,7 +398,7 @@ export default async function DailyHistoryPage({
                               />
                             </div>
                             <div className="grid gap-2 md:col-span-1">
-                              <Label htmlFor={`sale-item-${sale.id}`}>Description</Label>
+                              <Label htmlFor={`sale-item-${sale.id}`}>Description <span className="text-muted-foreground">(optional)</span></Label>
                               <Input
                                 id={`sale-item-${sale.id}`}
                                 name="itemDescription"

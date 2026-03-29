@@ -198,8 +198,8 @@ export async function updateSaleAction(formData: FormData) {
     redirect("/dashboard?error=missing-sale");
   }
 
-  if (!customerName || !itemDescription || !Number.isFinite(totalAmount) || totalAmount <= 0) {
-    redirect(appendQuery(targetPath, "error", "Please enter a customer name, description, and valid amount."));
+  if (!customerName || !Number.isFinite(totalAmount) || totalAmount <= 0) {
+    redirect(appendQuery(targetPath, "error", "Please enter a customer name and valid amount."));
   }
 
   const { supabase, isAdmin } = await getAdminClient();

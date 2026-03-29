@@ -44,7 +44,7 @@ export async function createSaleAction(formData: FormData) {
     redirect("/dashboard?error=missing-business");
   }
 
-  if (!customerName || !itemDescription || !Number.isFinite(totalAmount) || totalAmount <= 0) {
+  if (!customerName || !Number.isFinite(totalAmount) || totalAmount <= 0) {
     redirect(`/dashboard/${businessId}/pos?error=invalid-sale`);
   }
 
