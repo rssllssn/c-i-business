@@ -210,7 +210,7 @@ export default async function DailyHistoryPage({
   );
   const netCashTotal = salesReceivedTotal - expensesTotal;
   const isAdmin = profile.role === "admin";
-  const canEditOpenTransactions = isAdmin && selectedDate === todayDateKey && !report;
+  const canEditOpenTransactions = isAdmin;
   const successMessage =
     query.success === "paid"
       ? "Sale marked as paid."

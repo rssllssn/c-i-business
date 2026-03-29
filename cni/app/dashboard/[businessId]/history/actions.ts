@@ -52,7 +52,7 @@ async function getAdminClient() {
     redirect("/dashboard?error=admin-only");
   }
 
-  return supabase;
+  return { supabase, isAdmin: profile.role === "admin" };
 }
 
 async function ensureEditableToday(
@@ -60,7 +60,12 @@ async function ensureEditableToday(
   businessId: string,
   createdAt: string,
   targetPath: string,
+  isAdmin = false,
 ) {
+  if (isAdmin) {
+    return;
+  }
+
   const today = getManilaDateKey();
 
   if (getManilaDateKey(new Date(createdAt)) !== today) {
@@ -88,6 +93,7 @@ async function loadSaleForEdit(
   businessId: string,
   saleId: string,
   targetPath: string,
+  isAdmin = false,
 ) {
   const { data: sale, error } = await supabase
     .from("sales")
@@ -104,7 +110,7 @@ async function loadSaleForEdit(
     redirect(appendQuery(targetPath, "error", "Sale not found."));
   }
 
-  await ensureEditableToday(supabase, businessId, sale.created_at, targetPath);
+  await ensureEditableToday(supabase, businessId, sale.created_at, targetPath, isAdmin);
 
   return sale;
 }
@@ -114,6 +120,7 @@ async function loadExpenseForEdit(
   businessId: string,
   expenseId: string,
   targetPath: string,
+  isAdmin = false,
 ) {
   const { data: expense, error } = await supabase
     .from("expenses")
@@ -130,7 +137,7 @@ async function loadExpenseForEdit(
     redirect(appendQuery(targetPath, "error", "Expense not found."));
   }
 
-  await ensureEditableToday(supabase, businessId, expense.created_at, targetPath);
+  await ensureEditableToday(supabase, businessId, expense.created_at, targetPath, isAdmin);
 
   return expense;
 }
@@ -195,8 +202,8 @@ export async function updateSaleAction(formData: FormData) {
     redirect(appendQuery(targetPath, "error", "Please enter a customer name, description, and valid amount."));
   }
 
-  const supabase = await getAdminClient();
-  await loadSaleForEdit(supabase, businessId, saleId, targetPath);
+  const { supabase, isAdmin } = await getAdminClient();
+  await loadSaleForEdit(supabase, businessId, saleId, targetPath, isAdmin);
 
   const { error } = await supabase
     .from("sales")
@@ -225,8 +232,8 @@ export async function deleteSaleAction(formData: FormData) {
     redirect("/dashboard?error=missing-sale");
   }
 
-  const supabase = await getAdminClient();
-  await loadSaleForEdit(supabase, businessId, saleId, targetPath);
+  const { supabase, isAdmin } = await getAdminClient();
+  await loadSaleForEdit(supabase, businessId, saleId, targetPath, isAdmin);
 
   const { error } = await supabase.from("sales").delete().eq("business_id", businessId).eq("id", saleId);
 
@@ -253,8 +260,8 @@ export async function updateExpenseAction(formData: FormData) {
     redirect(appendQuery(targetPath, "error", "Please enter a valid expense description and amount."));
   }
 
-  const supabase = await getAdminClient();
-  await loadExpenseForEdit(supabase, businessId, expenseId, targetPath);
+  const { supabase, isAdmin } = await getAdminClient();
+  await loadExpenseForEdit(supabase, businessId, expenseId, targetPath, isAdmin);
 
   const { error } = await supabase
     .from("expenses")
@@ -282,8 +289,8 @@ export async function deleteExpenseAction(formData: FormData) {
     redirect("/dashboard?error=missing-expense");
   }
 
-  const supabase = await getAdminClient();
-  await loadExpenseForEdit(supabase, businessId, expenseId, targetPath);
+  const { supabase, isAdmin } = await getAdminClient();
+  await loadExpenseForEdit(supabase, businessId, expenseId, targetPath, isAdmin);
 
   const { error } = await supabase.from("expenses").delete().eq("business_id", businessId).eq("id", expenseId);
 
